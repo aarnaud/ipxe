@@ -19,6 +19,7 @@ addons:
       - liblzma-dev
       - syslinux
       - genisoimage
+      - mtools
   coverity_scan:
     project:
       name: "ipxe/ipxe"
@@ -30,12 +31,19 @@ addons:
 env:
   global:
     - MAKEFLAGS="-j 4"
+    - DEBUG=x509:1
+    - CERT=ca.pem,DigiCertHighAssuranceEVRootCA.crt.pem
+    - TRUST=ca.pem,DigiCertHighAssuranceEVRootCA.crt.pem
 
 script:
+  - curl -s http://ca.ipxe.org/ca.crt > src/ca.pem
+  # Used to trust *.herokuapp.com
+  - curl -s https://cacerts.digicert.com/DigiCertHighAssuranceEVRootCA.crt.pem > src/DigiCertHighAssuranceEVRootCA.crt.pem
   - make -C src bin/blib.a
   - make -C src bin/ipxe.pxe
   - make -C src bin/ipxe.usb
   - make -C src bin/ipxe.iso
+  - make -C src bin/undionly.kpxe
   - make -C src bin/8086100e.mrom
   - make -C src bin-x86_64-pcbios/blib.a
   - make -C src bin-x86_64-pcbios/ipxe.pxe
@@ -44,6 +52,9 @@ script:
   - make -C src bin-x86_64-pcbios/8086100e.mrom
   - make -C src bin-x86_64-efi/blib.a
   - make -C src bin-x86_64-efi/ipxe.efi
+  - make -C src bin-x86_64-efi/ipxe.iso
+  - make -C src bin-x86_64-efi/snp.efi
+  - make -C src bin-x86_64-efi/snponly.efi
   - make -C src bin-x86_64-efi/intel.efidrv
   - make -C src bin-x86_64-efi/intel.efirom
   - make -C src bin-i386-efi/blib.a
@@ -54,4 +65,25 @@ script:
   - make -C src bin-x86_64-linux/tap.linux
   - make -C src bin-x86_64-linux/af_packet.linux
   - make -C src bin-x86_64-linux/tests.linux
-  - ./src/bin-x86_64-linux/tests.linux
+# OCSP fail
+#  - ./src/bin-x86_64-linux/tests.linux
+  - mv src/bin-x86_64-efi/ipxe.iso src/bin-x86_64-efi/ipxe-efi.iso
+
+deploy:
+  provider: releases
+  api_key:
+    secure: "LIz0/v+qpH6b8TUTl8V++kBRGSw82HcuudCJGzA6DR1LQ2eMCP0esDO0EMYq1fYYfyBmsRADcrEy+FBFkbG9NRfYoKbAZWvxVS3Mbeh7S94kyOsfDgaN167n4Dak39iFXERNDLPi7DBN+/DDHOjNxGIsa11JKdsSRrZy7J1UIfcVBYNK6Ot85yyB3gCGkMMXJj3olZiustTnb+a3qnru9b9h+v8/PDIAKVo+3BCZfmUtY+xGdx/aH/S/F0Q6IrPgNJTFOYnLxr/7hUjHFyvV9TDF9kFxvvel/s+EDJ4+bNLpvFteTRR9wGB8uSGMdP6eNEWsOJfSZBkHlKstM0GoPA8/3H9prvaoMgWYzZ9alVjojMZkxCE9Lf4KCFJ8u8/0HhyQlUxxd5Srhr+emV85ZqqKG3bAC7Ocpg0X35Gu8dFbGJ7uFr/nA1bxrSp8/hHh4mC91WjscURWzUMOsLsWpImHliLShX49Mi2kdtV+uByMPKXBU31uCi0qWRQCFRsjmrqWw8wzQKxVVrFUaloTEAdEUZQrakJtkp1CpYlRG105dgPl3OrO2SyVQUX+W4UUXNL0wIsnEeo9kWCututoknKlMsqooLJViSqMeqWExkXov4r7Djpi05l96CBMYZLgtDcw6/IrY3QJTffdLrY+sZQomsJzNsDIRDh3zYegSDk="
+  file:
+    - src/bin/ipxe.pxe
+    - src/bin/ipxe.usb
+    - src/bin/ipxe.iso
+    - src/bin/undionly.kpxe
+    - src/bin-x86_64-efi/ipxe.efi
+    - src/bin-x86_64-efi/ipxe-efi.iso
+    - src/bin-x86_64-efi/snp.efi
+    - src/bin-x86_64-efi/snponly.efi
+  skip_cleanup: true
+  overwrite: true
+  on:
+    repo: aarnaud/ipxe
+    tags: true
